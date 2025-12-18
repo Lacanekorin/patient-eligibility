@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты - Patient Eligibility Checker</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #444;
+            margin-top: 30px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-card.total {
+            background: #e9ecef;
+        }
+        .stat-card.eligible {
+            background: #d4edda;
+            color: #155724;
+        }
+        .stat-card.not-eligible {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .stat-card.clarification {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .stat-card .number {
+            font-size: 36px;
+            font-weight: bold;
+        }
+        .stat-card .label {
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .accuracy-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .accuracy-section h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            opacity: 0.9;
+            border: none;
+            color: white;
+        }
+        .accuracy-number {
+            font-size: 48px;
+            font-weight: bold;
+        }
+        .accuracy-detail {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+
+        /* Patient cards */
+        .patients-section {
+            margin-top: 30px;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .section-header:hover {
+            background: #e9ecef;
+        }
+        .section-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-header .count {
+            background: #6c757d;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        .section-header.included .count {
+            background: #28a745;
+        }
+        .section-header.excluded .count {
+            background: #dc3545;
+        }
+        .section-header.unknown .count {
+            background: #ffc107;
+            color: #333;
+        }
+        .toggle-icon {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+        .section-content {
+            display: none;
+            padding: 10px 0;
+        }
+        .section-content.expanded {
+            display: block;
+        }
+
+        .patient-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        .patient-header {
+            padding: 15px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .patient-header:hover {
+            background: #e9ecef;
+        }
+        .patient-id {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .patient-status {
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-included {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-excluded {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-unknown {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .patient-details {
+            display: none;
+            padding: 15px;
+            border-top: 1px solid #ddd;
+            background: white;
+        }
+        .patient-details.expanded {
+            display: block;
+        }
+
+        .gt-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 10px;
+        }
+        .gt-correct {
+            background: #d4edda;
+            color: #155724;
+        }
+        .gt-incorrect {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .reasoning-section {
+            margin-bottom: 15px;
+        }
+        .reasoning-section h4 {
+            margin: 0 0 10px 0;
+            color: #555;
+            font-size: 14px;
+        }
+        .reasoning-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .reasoning-list li {
+            padding: 5px 10px;
+            margin: 3px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+        .reasoning-list li.positive {
+            border-left: 3px solid #28a745;
+        }
+        .reasoning-list li.negative {
+            border-left: 3px solid #dc3545;
+        }
+        .reasoning-list li.neutral {
+            border-left: 3px solid #6c757d;
+        }
+
+        .evidence-section {
+            margin-top: 15px;
+        }
+        .evidence-section h4 {
+            margin: 0 0 10px 0;
+            color: #555;
+            font-size: 14px;
+        }
+        .evidence-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 12px 0;
+            border-radius: 8px;
+            font-size: 13px;
+            border: 1px solid #e0e0e0;
+        }
+        .evidence-item.met {
+            border-left: 4px solid #28a745;
+        }
+        .evidence-item.not-met {
+            border-left: 4px solid #dc3545;
+        }
+        .evidence-item.unknown {
+            border-left: 4px solid #ffc107;
+        }
+        .evidence-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .evidence-type-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .evidence-type-badge.inclusion {
+            background: #d4edda;
+            color: #155724;
+        }
+        .evidence-type-badge.exclusion {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .evidence-result {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .evidence-result.met {
+            background: #28a745;
+            color: white;
+        }
+        .evidence-result.not-met {
+            background: #dc3545;
+            color: white;
+        }
+        .evidence-result.unknown {
+            background: #ffc107;
+            color: #333;
+        }
+        .evidence-block {
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        .evidence-block.criterion-block {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+        }
+        .evidence-block.anamnesis-block {
+            background: #fff8e1;
+            border: 1px solid #ffcc80;
+        }
+        .evidence-block-label {
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .evidence-block-label .icon {
+            font-size: 14px;
+        }
+        .evidence-block-text {
+            font-size: 13px;
+            line-height: 1.5;
+            color: #333;
+        }
+        .evidence-block.criterion-block .evidence-block-text {
+            color: #1565c0;
+        }
+        .evidence-block.anamnesis-block .evidence-block-text {
+            color: #e65100;
+            font-style: italic;
+        }
+        .evidence-meta {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #ddd;
+            font-size: 11px;
+            color: #888;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .evidence-meta .score {
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        .evidence-meta .score.high {
+            background: #d4edda;
+            color: #155724;
+        }
+        .evidence-meta .score.medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .evidence-meta .score.low {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .evidence-meta .negated {
+            background: #fff3cd;
+            color: #856404;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        .evidence-meta .confidence {
+            color: #666;
+        }
+
+        .criteria-summary {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .criteria-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            background: #e9ecef;
+        }
+        .criteria-badge.met {
+            background: #d4edda;
+            color: #155724;
+        }
+        .criteria-badge.not-met {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .criteria-badge.unknown {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Результаты обработки</h1>
+
+        {% if stats.accuracy and stats.accuracy.total > 0 %}
+        <div class="accuracy-section">
+            <h2>Accuracy (сравнение с Ground Truth)</h2>
+            <div class="accuracy-number">{{ stats.accuracy.percentage }}%</div>
+            <div class="accuracy-detail">
+                {{ stats.accuracy.correct }} из {{ stats.accuracy.total }} совпадений с экспертной оценкой
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="stats">
+            <div class="stat-card total">
+                <div class="number">{{ stats.total }}</div>
+                <div class="label">Всего пациентов</div>
+            </div>
+            <div class="stat-card eligible">
+                <div class="number">{{ stats.eligible }}</div>
+                <div class="label">Included (Подходят)</div>
+            </div>
+            <div class="stat-card not-eligible">
+                <div class="number">{{ stats.not_eligible }}</div>
+                <div class="label">Excluded (Не подходят)</div>
+            </div>
+            <div class="stat-card clarification">
+                <div class="number">{{ stats.clarification }}</div>
+                <div class="label">Not Enough Info</div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <a href="/download/{{ result_file }}" class="btn btn-success">
+                Скачать результаты (Excel)
+            </a>
+            <a href="/" class="btn btn-secondary">
+                Загрузить новый файл
+            </a>
+        </div>
+
+        {% if patients %}
+        <div class="patients-section">
+            <h2>Детальные результаты по пациентам</h2>
+
+            <!-- Included patients -->
+            {% set included_patients = patients | selectattr('predicted_status', 'equalto', 'included') | list %}
+            {% if included_patients %}
+            <div class="section-header included" onclick="toggleSection('included-section')">
+                <h3>
+                    <span>Included (Подходят)</span>
+                    <span class="count">{{ included_patients | length }}</span>
+                </h3>
+                <span class="toggle-icon" id="included-icon">+</span>
+            </div>
+            <div class="section-content" id="included-section">
+                {% for patient in included_patients %}
+                <div class="patient-card">
+                    <div class="patient-header" onclick="togglePatient('patient-{{ patient.patient_id }}')">
+                        <div>
+                            <span class="patient-id">{{ patient.patient_id }}</span>
+                            {% if patient.ground_truth and patient.ground_truth != 'N/A' %}
+                                {% if patient.is_correct %}
+                                <span class="gt-badge gt-correct">GT: {{ patient.ground_truth }}</span>
+                                {% else %}
+                                <span class="gt-badge gt-incorrect">GT: {{ patient.ground_truth }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <span class="patient-status status-included">Included</span>
+                    </div>
+                    <div class="patient-details" id="patient-{{ patient.patient_id }}">
+                        <div class="reasoning-section">
+                            <h4>Обоснование:</h4>
+                            <ul class="reasoning-list">
+                                {% for reason in patient.reasoning %}
+                                <li class="{% if reason.startswith('+') %}positive{% elif reason.startswith('-') %}negative{% else %}neutral{% endif %}">
+                                    {{ reason }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div class="criteria-summary">
+                            <span class="criteria-badge met">Inclusion met: {{ patient.inclusion_met }}</span>
+                            <span class="criteria-badge not-met">Inclusion not met: {{ patient.inclusion_not_met }}</span>
+                            <span class="criteria-badge unknown">Unknown: {{ patient.inclusion_unknown }}</span>
+                            <span class="criteria-badge">Exclusion met: {{ patient.exclusion_met }}</span>
+                        </div>
+
+                        {% if patient.evidence %}
+                        <div class="evidence-section">
+                            <h4>Анализ критериев:</h4>
+                            {% for ev in patient.evidence %}
+                            <div class="evidence-item {% if ev.is_met == True %}met{% elif ev.is_met == False %}not-met{% else %}unknown{% endif %}">
+                                <div class="evidence-header">
+                                    <span class="evidence-type-badge {{ ev.type }}">{{ ev.type }}</span>
+                                    <span class="evidence-result {% if ev.is_met == True %}met{% elif ev.is_met == False %}not-met{% else %}unknown{% endif %}">
+                                        {% if ev.is_met == True %}MET{% elif ev.is_met == False %}NOT MET{% else %}UNKNOWN{% endif %}
+                                    </span>
+                                </div>
+                                <div class="evidence-block criterion-block">
+                                    <div class="evidence-block-label">
+                                        <span class="icon">📋</span> Критерий
+                                    </div>
+                                    <div class="evidence-block-text">{{ ev.criterion }}</div>
+                                </div>
+                                <div class="evidence-block anamnesis-block">
+                                    <div class="evidence-block-label">
+                                        <span class="icon">🏥</span> Из анамнеза пациента
+                                    </div>
+                                    <div class="evidence-block-text">"{{ ev.matched_text }}"</div>
+                                </div>
+                                <div class="evidence-meta">
+                                    <span class="score {% if ev.score >= 0.6 %}high{% elif ev.score >= 0.45 %}medium{% else %}low{% endif %}">
+                                        Similarity: {{ "%.0f"|format(ev.score * 100) }}%
+                                    </span>
+                                    {% if ev.confidence %}
+                                    <span class="confidence">Confidence: {{ ev.confidence }}</span>
+                                    {% endif %}
+                                    {% if ev.has_negation %}
+                                    <span class="negated">NEGATION DETECTED</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Excluded patients -->
+            {% set excluded_patients = patients | selectattr('predicted_status', 'equalto', 'excluded') | list %}
+            {% if excluded_patients %}
+            <div class="section-header excluded" onclick="toggleSection('excluded-section')">
+                <h3>
+                    <span>Excluded (Не подходят)</span>
+                    <span class="count">{{ excluded_patients | length }}</span>
+                </h3>
+                <span class="toggle-icon" id="excluded-icon">+</span>
+            </div>
+            <div class="section-content" id="excluded-section">
+                {% for patient in excluded_patients %}
+                <div class="patient-card">
+                    <div class="patient-header" onclick="togglePatient('patient-{{ patient.patient_id }}')">
+                        <div>
+                            <span class="patient-id">{{ patient.patient_id }}</span>
+                            {% if patient.ground_truth and patient.ground_truth != 'N/A' %}
+                                {% if patient.is_correct %}
+                                <span class="gt-badge gt-correct">GT: {{ patient.ground_truth }}</span>
+                                {% else %}
+                                <span class="gt-badge gt-incorrect">GT: {{ patient.ground_truth }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <span class="patient-status status-excluded">Excluded</span>
+                    </div>
+                    <div class="patient-details" id="patient-{{ patient.patient_id }}">
+                        <div class="reasoning-section">
+                            <h4>Обоснование:</h4>
+                            <ul class="reasoning-list">
+                                {% for reason in patient.reasoning %}
+                                <li class="{% if reason.startswith('+') %}positive{% elif reason.startswith('-') %}negative{% else %}neutral{% endif %}">
+                                    {{ reason }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div class="criteria-summary">
+                            <span class="criteria-badge met">Inclusion met: {{ patient.inclusion_met }}</span>
+                            <span class="criteria-badge not-met">Inclusion not met: {{ patient.inclusion_not_met }}</span>
+                            <span class="criteria-badge unknown">Unknown: {{ patient.inclusion_unknown }}</span>
+                            <span class="criteria-badge not-met">Exclusion met: {{ patient.exclusion_met }}</span>
+                        </div>
+
+                        {% if patient.evidence %}
+                        <div class="evidence-section">
+                            <h4>Анализ критериев:</h4>
+                            {% for ev in patient.evidence %}
+                            <div class="evidence-item {% if ev.is_met == True %}met{% elif ev.is_met == False %}not-met{% else %}unknown{% endif %}">
+                                <div class="evidence-header">
+                                    <span class="evidence-type-badge {{ ev.type }}">{{ ev.type }}</span>
+                                    <span class="evidence-result {% if ev.is_met == True %}met{% elif ev.is_met == False %}not-met{% else %}unknown{% endif %}">
+                                        {% if ev.is_met == True %}MET{% elif ev.is_met == False %}NOT MET{% else %}UNKNOWN{% endif %}
+                                    </span>
+                                </div>
+                                <div class="evidence-block criterion-block">
+                                    <div class="evidence-block-label">
+                                        <span class="icon">📋</span> Критерий
+                                    </div>
+                                    <div class="evidence-block-text">{{ ev.criterion }}</div>
+                                </div>
+                                <div class="evidence-block anamnesis-block">
+                                    <div class="evidence-block-label">
+                                        <span class="icon">🏥</span> Из анамнеза пациента
+                                    </div>
+                                    <div class="evidence-block-text">"{{ ev.matched_text }}"</div>
+                                </div>
+                                <div class="evidence-meta">
+                                    <span class="score {% if ev.score >= 0.6 %}high{% elif ev.score >= 0.45 %}medium{% else %}low{% endif %}">
+                                        Similarity: {{ "%.0f"|format(ev.score * 100) }}%
+                                    </span>
+                                    {% if ev.confidence %}
+                                    <span class="confidence">Confidence: {{ ev.confidence }}</span>
+                                    {% endif %}
+                                    {% if ev.has_negation %}
+                                    <span class="negated">NEGATION DETECTED</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Not enough info patients -->
+            {% set unknown_patients = patients | selectattr('predicted_status', 'equalto', 'not enough information') | list %}
+            {% if unknown_patients %}
+            <div class="section-header unknown" onclick="toggleSection('unknown-section')">
+                <h3>
+                    <span>Not Enough Information</span>
+                    <span class="count">{{ unknown_patients | length }}</span>
+                </h3>
+                <span class="toggle-icon" id="unknown-icon">+</span>
+            </div>
+            <div class="section-content" id="unknown-section">
+                {% for patient in unknown_patients %}
+                <div class="patient-card">
+                    <div class="patient-header" onclick="togglePatient('patient-{{ patient.patient_id }}')">
+                        <div>
+                            <span class="patient-id">{{ patient.patient_id }}</span>
+                            {% if patient.ground_truth and patient.ground_truth != 'N/A' %}
+                                {% if patient.is_correct %}
+                                <span class="gt-badge gt-correct">GT: {{ patient.ground_truth }}</span>
+                                {% else %}
+                                <span class="gt-badge gt-incorrect">GT: {{ patient.ground_truth }}</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        <span class="patient-status status-unknown">Not Enough Info</span>
+                    </div>
+                    <div class="patient-details" id="patient-{{ patient.patient_id }}">
+                        <div class="reasoning-section">
+                            <h4>Обоснование:</h4>
+                            <ul class="reasoning-list">
+                                {% for reason in patient.reasoning %}
+                                <li class="neutral">{{ reason }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div class="criteria-summary">
+                            <span class="criteria-badge met">Inclusion met: {{ patient.inclusion_met }}</span>
+                            <span class="criteria-badge not-met">Inclusion not met: {{ patient.inclusion_not_met }}</span>
+                            <span class="criteria-badge unknown">Unknown: {{ patient.inclusion_unknown }}</span>
+                        </div>
+
+                        {% if patient.evidence %}
+                        <div class="evidence-section">
+                            <h4>Анализ критериев:</h4>
+                            {% for ev in patient.evidence %}
+                            <div class="evidence-item {% if ev.is_met == True %}met{% elif ev.is_met == False %}not-met{% else %}unknown{% endif %}">
+                                <div class="evidence-header">
+                                    <span class="evidence-type-badge {{ ev.type }}">{{ ev.type }}</span>
+                                    <span class="evidence-result {% if ev.is_met == True %}met{% elif ev.is_met == False %}not-met{% else %}unknown{% endif %}">
+                                        {% if ev.is_met == True %}MET{% elif ev.is_met == False %}NOT MET{% else %}UNKNOWN{% endif %}
+                                    </span>
+                                </div>
+                                <div class="evidence-block criterion-block">
+                                    <div class="evidence-block-label">
+                                        <span class="icon">📋</span> Критерий
+                                    </div>
+                                    <div class="evidence-block-text">{{ ev.criterion }}</div>
+                                </div>
+                                <div class="evidence-block anamnesis-block">
+                                    <div class="evidence-block-label">
+                                        <span class="icon">🏥</span> Из анамнеза пациента
+                                    </div>
+                                    <div class="evidence-block-text">"{{ ev.matched_text }}"</div>
+                                </div>
+                                <div class="evidence-meta">
+                                    <span class="score {% if ev.score >= 0.6 %}high{% elif ev.score >= 0.45 %}medium{% else %}low{% endif %}">
+                                        Similarity: {{ "%.0f"|format(ev.score * 100) }}%
+                                    </span>
+                                    {% if ev.confidence %}
+                                    <span class="confidence">Confidence: {{ ev.confidence }}</span>
+                                    {% endif %}
+                                    {% if ev.has_negation %}
+                                    <span class="negated">NEGATION DETECTED</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const iconId = sectionId.replace('-section', '-icon');
+            const icon = document.getElementById(iconId);
+
+            if (section.classList.contains('expanded')) {
+                section.classList.remove('expanded');
+                icon.textContent = '+';
+            } else {
+                section.classList.add('expanded');
+                icon.textContent = '−';
+            }
+        }
+
+        function togglePatient(patientId) {
+            const details = document.getElementById(patientId);
+            if (details.classList.contains('expanded')) {
+                details.classList.remove('expanded');
+            } else {
+                details.classList.add('expanded');
+            }
+        }
+    </script>
+</body>
+</html>

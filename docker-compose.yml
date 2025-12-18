@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  patient-checker:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    image: patient-eligibility-checker:cpu
+    container_name: eligibility-checker
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./models:/root/.cache/huggingface/hub
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    restart: unless-stopped

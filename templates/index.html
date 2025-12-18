@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Eligibility Checker</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+        }
+        .upload-area input[type="file"] {
+            display: none;
+        }
+        .upload-area label {
+            cursor: pointer;
+            color: #007bff;
+            font-size: 18px;
+        }
+        .upload-area label:hover {
+            text-decoration: underline;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+        .flash {
+            padding: 10px 15px;
+            background: #f8d7da;
+            color: #721c24;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background: #e9ecef;
+            border-radius: 5px;
+        }
+        .instructions h3 {
+            margin-top: 0;
+        }
+        .instructions ul {
+            margin-bottom: 0;
+        }
+        #file-name {
+            margin-top: 10px;
+            color: #666;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .loading-overlay.active {
+            display: flex;
+        }
+        .loading-text {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .loading-subtext {
+            font-size: 14px;
+            color: #666;
+            margin-top: 20px;
+        }
+
+        /* Horse track */
+        .horse-track {
+            width: 300px;
+            height: 60px;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 3px solid #8B4513;
+        }
+        .horse {
+            position: absolute;
+            font-size: 40px;
+            animation: runHorse 6s ease-in-out infinite;
+            top: 10px;
+        }
+        .horse::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 5px;
+        }
+
+        @keyframes runHorse {
+            0% {
+                left: -50px;
+                transform: scaleX(-1);
+            }
+            45% {
+                left: calc(100% + 10px);
+                transform: scaleX(-1);
+            }
+            50% {
+                left: calc(100% + 10px);
+                transform: scaleX(1);
+            }
+            95% {
+                left: -50px;
+                transform: scaleX(1);
+            }
+            100% {
+                left: -50px;
+                transform: scaleX(-1);
+            }
+        }
+
+        /* Dust particles */
+        .dust {
+            position: absolute;
+            bottom: 5px;
+            font-size: 12px;
+            opacity: 0;
+            animation: dustPuff 0.5s ease-out infinite;
+        }
+        .dust:nth-child(2) { animation-delay: 0.1s; left: 20%; }
+        .dust:nth-child(3) { animation-delay: 0.2s; left: 40%; }
+        .dust:nth-child(4) { animation-delay: 0.3s; left: 60%; }
+        .dust:nth-child(5) { animation-delay: 0.4s; left: 80%; }
+
+        @keyframes dustPuff {
+            0% { opacity: 0.8; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-15px); }
+        }
+
+        /* Progress dots */
+        .progress-dots {
+            margin-top: 20px;
+        }
+        .progress-dots span {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin: 0 5px;
+            background: #007bff;
+            border-radius: 50%;
+            animation: bounce 1.4s ease-in-out infinite;
+        }
+        .progress-dots span:nth-child(1) { animation-delay: 0s; }
+        .progress-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .progress-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading overlay with horse animation -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-text">Анализируем данные пациентов...</div>
+        <div class="horse-track">
+            <div class="horse">🐎</div>
+            <span class="dust">💨</span>
+            <span class="dust">💨</span>
+            <span class="dust">💨</span>
+            <span class="dust">💨</span>
+            <span class="dust">💨</span>
+        </div>
+        <div class="progress-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+        <div class="loading-subtext">NLP модель обрабатывает критерии включения и исключения</div>
+    </div>
+
+    <div class="container">
+        <h1>Patient Eligibility Checker</h1>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="flash">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <div class="upload-area">
+                <label for="file">
+                    Выберите Excel файл или перетащите его сюда
+                </label>
+                <input type="file" name="file" id="file" accept=".xlsx,.xls" onchange="showFileName()">
+                <div id="file-name"></div>
+            </div>
+            <center>
+                <button type="submit" class="btn">Обработать файл</button>
+            </center>
+        </form>
+
+        <div class="instructions">
+            <h3>Инструкция</h3>
+            <ul>
+                <li>Загрузите Excel файл (.xlsx или .xls)</li>
+                <li>Файл должен содержать столбцы: <code>note</code>, <code>trial_inclusion</code>, <code>trial_exclusion</code></li>
+                <li>После обработки вы получите файл с тремя листами:
+                    <ul>
+                        <li>Подходящие пациенты</li>
+                        <li>Не подходящие пациенты</li>
+                        <li>Пациенты, требующие уточнения</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function showFileName() {
+            const input = document.getElementById('file');
+            const nameDisplay = document.getElementById('file-name');
+            if (input.files.length > 0) {
+                nameDisplay.textContent = 'Выбран файл: ' + input.files[0].name;
+            }
+        }
+
+        // Show loading animation on form submit
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const fileInput = document.getElementById('file');
+            if (fileInput.files.length > 0) {
+                document.getElementById('loadingOverlay').classList.add('active');
+            }
+        });
+    </script>
+</body>
+</html>

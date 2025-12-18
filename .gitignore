@@ -1,0 +1,41 @@
+# Virtual environment
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.claude/
+
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data files
+data/uploads/
+data/results/
+*.xlsx
+*.xls
+
+# Environment variables
+.env
+.env.local
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Logs
+*.log
+
+# Models (downloaded separately, ~4.5GB total)
+models/
+nul
+Batch1withGroundTruth.xlsxdocker_response.html
