@@ -16,8 +16,8 @@ docker run -p 5000:5000 -v ./data:/app/data lacanekorin/patient-eligibility-chec
 ### Локальная разработка
 
 ```bash
-git clone <repo-url>
-cd defy
+git clone https://github.com/Lacanekorin/patient-eligibility.git
+cd patient-eligibility
 
 # Создать venv и установить зависимости
 python -m venv venv
@@ -40,7 +40,7 @@ docker-compose up --build
 ## Структура проекта
 
 ```
-patient_Eligibility/
+patient-eligibility/
 ├── src/
 │   ├── nlp_analyzer.py       # NLP анализ (sentence-transformers + SapBERT)
 │   ├── data_preprocessor.py  # Препроцессинг Excel -> JSON
