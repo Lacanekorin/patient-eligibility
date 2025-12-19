@@ -267,6 +267,22 @@ class MedicalNLPAnalyzer:
                 r'(?:on|receiving)\s+(?:chronic\s+)?(?:hemo)?dialysis',
                 r'esrd\s+on\s+dialysis',
             ],
+            'cardiovascular event': [
+                r'recent\s+cardiovascular\s+event',
+                r'recent\s+(?:major\s+)?(?:cardiac|cardiovascular)\s+event',
+                r'recent\s+(?:mi|myocardial\s+infarction|stroke)',
+            ],
+            'statin intolerance': [
+                r'statin\s+intolerance',
+                r'intolerance\s+(?:to\s+)?statin',
+                r'prior\s+statin\s+intolerance',
+                r'documented\s+statin\s+intolerance',
+            ],
+            'pregnant': [
+                r'\bpatient\s+is\s+pregnant\b',
+                r'\bpregnancy\s+noted\b',
+                r'\bcurrently\s+pregnant\b',
+            ],
         }
 
         for criterion_key, patterns in direct_affirmation_patterns.items():
@@ -373,7 +389,24 @@ class MedicalNLPAnalyzer:
                         # Для eGFR < 30: если actual < 30, критерий выполнен
                         return (actual_egfr < threshold, sentence)
 
-        # Возраст: "aged >= 18" или "age >= 18"
+        # Возраст: "aged >= 18" или "age >= 18" или "Age 35-80 years"
+        # Сначала проверяем диапазон (Age 35-80)
+        age_range = re.search(r'age\s*(\d+)\s*[-–—]\s*(\d+)\s*years?', criterion_lower)
+        if age_range:
+            min_age = int(age_range.group(1))
+            max_age = int(age_range.group(2))
+            for sentence in note_sentences:
+                sentence_lower = sentence.lower()
+                age_match = re.search(r'(\d+)[\s-]*year[\s-]*old', sentence_lower)
+                if age_match:
+                    actual_age = int(age_match.group(1))
+                    # Для диапазона 35-80: если actual < 35 или > 80, критерий НЕ выполнен
+                    if min_age <= actual_age <= max_age:
+                        return (True, sentence)
+                    else:
+                        return (False, sentence)
+
+        # Простой возраст: "aged >= 18"
         age_criterion = re.search(r'age[d]?\s*[≥>]=?\s*(\d+)', criterion_lower)
         if age_criterion:
             threshold = int(age_criterion.group(1))
@@ -409,6 +442,83 @@ class MedicalNLPAnalyzer:
                     if systolic < threshold:
                         return (True, sentence)
 
+        # ALT/AST критерий: "ALT > 3× ULN" или "hepatic impairment"
+        # ULN для ALT = 56 U/L, для AST = 40 U/L
+        # 3× означает ALT > 168 или AST > 120
+        if 'hepatic' in criterion_lower or 'alt' in criterion_lower or 'ast' in criterion_lower:
+            if '3' in criterion_lower and 'uln' in criterion_lower:
+                alt_threshold = 168  # 3 × 56
+                ast_threshold = 120  # 3 × 40
+                for sentence in note_sentences:
+                    sentence_lower = sentence.lower()
+                    # Ищем ALT
+                    alt_match = re.search(r'\balt[:\s]*(\d+)', sentence_lower)
+                    if alt_match:
+                        actual_alt = int(alt_match.group(1))
+                        if actual_alt > alt_threshold:
+                            return (True, sentence)
+                    # Ищем AST
+                    ast_match = re.search(r'\bast[:\s]*(\d+)', sentence_lower)
+                    if ast_match:
+                        actual_ast = int(ast_match.group(1))
+                        if actual_ast > ast_threshold:
+                            return (True, sentence)
+                # Если нашли ALT/AST, но они в норме — критерий не выполнен
+                for sentence in note_sentences:
+                    sentence_lower = sentence.lower()
+                    if re.search(r'\balt[:\s]*\d+', sentence_lower) or re.search(r'\bast[:\s]*\d+', sentence_lower):
+                        return (False, sentence)
+
+        return (None, None)
+
+    def _check_statin_initiation(self, note_sentences: List[str]) -> Tuple[Optional[bool], Optional[str]]:
+        """
+        Проверяет критерий "New initiation of statin" для Study W02.
+
+        Паттерны, указывающие на НАЧАЛО приёма статина:
+        - "start Atorvastatin 20 mg"
+        - "initiate statin therapy"
+        - "begin rosuvastatin"
+        - "prescribed atorvastatin"
+
+        "No prior statin use" — это ПОДТВЕРЖДЕНИЕ критерия (statin-naive = можно начать)
+        """
+        statin_names = [
+            'atorvastatin', 'rosuvastatin', 'simvastatin', 'pravastatin',
+            'lovastatin', 'fluvastatin', 'pitavastatin', 'statin'
+        ]
+
+        # Паттерны начала приёма статина
+        initiation_patterns = [
+            r'\b(?:start|started|starting|begin|began|initiat\w+|prescrib\w+|order\w+)\s+(?:\w+\s+)*?(' + '|'.join(statin_names) + r')',
+            r'\bplan[:\s]+(?:start|initiat\w+|begin)\s+(?:\w+\s+)*?(' + '|'.join(statin_names) + r')',
+            r'\b(' + '|'.join(statin_names) + r')\s+(?:\d+\s*mg\s+)?(?:daily|nightly|qd|qhs)\b.*(?:start|begin|initiat)',
+        ]
+
+        for sentence in note_sentences:
+            sentence_lower = sentence.lower()
+            for pattern in initiation_patterns:
+                if re.search(pattern, sentence_lower):
+                    return (True, sentence)
+
+        # Также проверяем: если есть "no prior statin" И есть назначение статина в плане
+        has_no_prior = False
+        has_statin_in_plan = False
+        statin_sentence = None
+
+        for sentence in note_sentences:
+            sentence_lower = sentence.lower()
+            if 'no prior statin' in sentence_lower or 'no statin' in sentence_lower:
+                has_no_prior = True
+            # Проверяем назначение в плане
+            if any(statin in sentence_lower for statin in statin_names[:7]):  # Конкретные статины
+                if any(word in sentence_lower for word in ['plan', 'start', 'begin', 'prescrib', 'order', 'initiat']):
+                    has_statin_in_plan = True
+                    statin_sentence = sentence
+
+        if has_no_prior and has_statin_in_plan:
+            return (True, statin_sentence)
+
         return (None, None)
 
     def check_negation_in_context(self, sentence: str, criterion_keywords: List[str], criterion_text: str = "") -> bool:
@@ -428,7 +538,11 @@ class MedicalNLPAnalyzer:
             'pacemaker', 'icd', 'crt', 'dialysis', 'renal', 'hepatic', 'pregnant',
             'decompensated', 'acute', 'unstable', 'hospitalization', 'revascularization',
             'restrictive', 'constrictive', 'hypertrophic', 'bradycardia', 'block',
-            'egfr', 'gfr', 'lvef', 'ef'
+            'egfr', 'gfr', 'lvef', 'ef',
+            # Дополнительные термины для cardiovascular критериев
+            'cardiovascular', 'cardiac', 'coronary', 'malignancy', 'cancer', 'steroid',
+            'glucocorticoid', 'prednisone', 'trial', 'interventional', 'breastfeeding',
+            'statin', 'ldl', 'ascvd', 'familial', 'hypercholesterolemia'
         ]
         for term in medical_terms:
             if term in criterion_lower:
@@ -478,6 +592,31 @@ class MedicalNLPAnalyzer:
             r'\bno\s+cardiac\s+transplant\b',
             r'\bno\s+heart\s+transplant\b',
             r'\bnot\s+(?:on|taking|receiving)\s+(?:\w+\s+)*?sglt2\b',
+            # Cardiovascular event patterns
+            r'\bno\s+(?:recent\s+)?cardiovascular\s+event\b',
+            r'\bno\s+(?:recent\s+)?(?:major\s+)?(?:cardiac|cardiovascular)\s+event\b',
+            r'\bno\s+(?:recent\s+)?(?:myocardial\s+)?infarction\b',
+            r'\bno\s+(?:recent\s+)?stroke\b',
+            r'\bno\s+(?:recent\s+)?(?:coronary\s+)?revascularization\b',
+            # Malignancy patterns
+            r'\bno\s+(?:active\s+)?malignancy\b',
+            r'\bno\s+(?:active\s+)?cancer\b',
+            # Steroid patterns
+            r'\bno\s+(?:chronic\s+)?(?:systemic\s+)?steroids?\b',
+            r'\bno\s+(?:chronic\s+)?glucocorticoid\b',
+            # Pregnancy patterns
+            r'\bnot\s+pregnant\b',
+            r'\bno\s+pregnancy\b',
+            r'\bnot\s+breastfeeding\b',
+            # Trial patterns
+            r'\bno\s+(?:recent\s+)?(?:interventional\s+)?(?:clinical\s+)?trial\b',
+            r'\bnot\s+(?:currently\s+)?(?:in|enrolled\s+in)\s+(?:a\s+)?(?:clinical\s+)?trial\b',
+            # Statin patterns (for Study W02) - осторожно с "no prior statin"
+            # "no prior statin" = statin-naive = хорошо для "new initiation"
+            # Только явные отказы от statin терапии
+            r'\bdiscontinued\s+statin\b',
+            r'\bstopped\s+statin\b',
+            r'\bstatin\s+intolerance\b',
         ]
         for pattern in strong_negation_phrases:
             if re.search(pattern, sentence_lower):
@@ -573,6 +712,22 @@ class MedicalNLPAnalyzer:
                 'has_negation': False,
                 'explanation': f"Numeric criterion: {'MET' if numeric_result else 'NOT MET'}"
             }
+
+        # Специальная проверка для statin initiation (Study W02)
+        criterion_lower = criterion.text.lower()
+        if 'statin' in criterion_lower and ('initiation' in criterion_lower or 'new' in criterion_lower):
+            statin_result, statin_sentence = self._check_statin_initiation(note_sentences)
+            if statin_result is not None:
+                return {
+                    'criterion': criterion.text,
+                    'type': criterion.type,
+                    'is_met': statin_result,
+                    'confidence': 'high',
+                    'score': 0.95 if statin_result else 0.0,
+                    'matched_sentence': statin_sentence or '[statin initiation check]',
+                    'has_negation': False,
+                    'explanation': f"Statin initiation: {'MET' if statin_result else 'NOT MET'}"
+                }
 
         # Sentence embeddings уже содержат расширенные термины
         best_sentence, score, idx = self.find_best_match(

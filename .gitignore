@@ -41,3 +41,13 @@ nul
 Batch1withGroundTruth.xlsxdocker_response.html
 dataset_block/
 presentation/
+test_data/
+
+# Test/utility scripts
+check_errors.py
+csv_upload_test.html
+fix_json.py
+generate_test_json.py
+test_api.py
+test_csv_converter.py
+src/csv_converter.py

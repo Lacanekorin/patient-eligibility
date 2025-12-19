@@ -14,6 +14,7 @@ from src.data_preprocessor import (
     PatientData
 )
 from src.nlp_analyzer import get_analyzer
+from src.csv_converter import convert_csv_files_to_patient_data, convert_to_dataframe
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-in-production'
@@ -312,6 +313,110 @@ def download_file(filename):
     return redirect(url_for('index'))
 
 
+@app.route('/upload_csv', methods=['POST'])
+def upload_csv_files():
+    """Обработка загруженных CSV файлов + criteria.txt."""
+    if 'files' not in request.files:
+        flash('Файлы не выбраны')
+        return redirect(url_for('index'))
+
+    files = request.files.getlist('files')
+
+    if not files or all(f.filename == '' for f in files):
+        flash('Файлы не выбраны')
+        return redirect(url_for('index'))
+
+    try:
+        # Разделяем файлы: criteria.txt и CSV
+        criteria_content = None
+        csv_files = {}
+
+        for file in files:
+            filename = file.filename
+            if not filename:
+                continue
+
+            filename_lower = filename.lower()
+
+            # Читаем содержимое файла
+            content = file.read()
+
+            if 'criteria' in filename_lower and filename_lower.endswith('.txt'):
+                # Файл с критериями
+                criteria_content = content.decode('utf-8')
+            elif filename_lower.endswith('.csv'):
+                # CSV файл
+                csv_files[filename] = content
+
+        # Проверяем, что есть критерии
+        if criteria_content is None:
+            flash('Необходимо загрузить файл criteria.txt с критериями')
+            return redirect(url_for('index'))
+
+        # Проверяем, что есть CSV файлы
+        if not csv_files:
+            flash('Необходимо загрузить хотя бы один CSV файл с данными пациента')
+            return redirect(url_for('index'))
+
+        print(f"Processing {len(csv_files)} CSV files with criteria")
+
+        # Конвертируем CSV в формат модели
+        converted_data = convert_csv_files_to_patient_data(csv_files, criteria_content)
+
+        if not converted_data['patients']:
+            flash('Не удалось извлечь данные пациентов из CSV файлов')
+            return redirect(url_for('index'))
+
+        print(f"Converted {len(converted_data['patients'])} patients")
+
+        # Преобразуем в DataFrame
+        df = convert_to_dataframe(converted_data)
+
+        # Обрабатываем стандартным пайплайном
+        results = process_patients_v2(df)
+
+        # Сохраняем результаты в Excel
+        result_filename = f'results_csv_upload.xlsx'
+        result_path = RESULTS_FOLDER / result_filename
+
+        save_results(
+            pd.DataFrame(results['results']['included']),
+            pd.DataFrame(results['results']['excluded']),
+            pd.DataFrame(results['results']['not_enough_info']),
+            str(result_path)
+        )
+
+        # Статистика для отображения
+        stats = {
+            'total': len(df),
+            'eligible': len(results['results']['included']),
+            'not_eligible': len(results['results']['excluded']),
+            'clarification': len(results['results']['not_enough_info']),
+            'accuracy': results['accuracy'],
+            'preprocessing': results['preprocessing_stats'],
+            'input_mode': 'CSV',
+            'criteria_count': {
+                'inclusion': len(converted_data['inclusion_criteria']),
+                'exclusion': len(converted_data['exclusion_criteria'])
+            }
+        }
+
+        return render_template(
+            'results.html',
+            stats=stats,
+            result_file=result_filename,
+            patients=results['detailed_results']
+        )
+
+    except Exception as e:
+        import traceback
+        error_msg = f'Ошибка обработки CSV файлов: {str(e)}'
+        print(error_msg)
+        print(traceback.format_exc())
+        flash(error_msg)
+        return redirect(url_for('index'))
+
+
 @app.route('/api/preprocess', methods=['POST'])
 def api_preprocess():
     """API эндпоинт для препроцессинга (возвращает JSON)."""
@@ -340,6 +445,110 @@ def api_preprocess():
         })
 
     return jsonify({'error': 'Invalid file format'}), 400
+
+
+@app.route('/api/analyze', methods=['POST'])
+def api_analyze():
+    """
+    API endpoint for analyzing patients via JSON.
+
+    Usage:
+        curl -X POST -H "Content-Type: application/json" \
+             -d @test_data/study_w01.json \
+             http://localhost:5000/api/analyze
+
+    Expected JSON format:
+    {
+        "patients": [
+            {
+                "patient_id": "P0001",
+                "note": "Patient clinical note text...",
+                "ground_truth": "included" | "excluded" | null
+            }
+        ],
+        "inclusion_criteria": ["criterion 1", "criterion 2", ...],
+        "exclusion_criteria": ["criterion A", "criterion B", ...]
+    }
+
+    Returns JSON with results and accuracy metrics.
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+
+        if 'patients' not in data:
+            return jsonify({'error': 'Missing "patients" field'}), 400
+
+        if 'inclusion_criteria' not in data or 'exclusion_criteria' not in data:
+            return jsonify({'error': 'Missing criteria fields'}), 400
+
+        patients = data['patients']
+        inclusion_criteria = data['inclusion_criteria']
+        exclusion_criteria = data['exclusion_criteria']
+
+        print(f"API: Processing {len(patients)} patients")
+        print(f"API: {len(inclusion_criteria)} inclusion, {len(exclusion_criteria)} exclusion criteria")
+
+        # Build DataFrame in expected format
+        rows = []
+        for patient in patients:
+            rows.append({
+                'patient_id\nstring': patient['patient_id'],
+                'note\nstring': patient['note'],
+                'trial_inclusion': '\n'.join(inclusion_criteria),
+                'trial_exclusion': '\n'.join(exclusion_criteria),
+                'expert_eligibility\nstring': patient.get('ground_truth', '')
+            })
+
+        df = pd.DataFrame(rows)
+
+        # Process through standard pipeline
+        results = process_patients_v2(df)
+
+        # Build response
+        response = {
+            'success': True,
+            'total_patients': len(patients),
+            'results': {
+                'included': len(results['results']['included']),
+                'excluded': len(results['results']['excluded']),
+                'not_enough_info': len(results['results']['not_enough_info'])
+            },
+            'accuracy': results['accuracy'],
+            'detailed_results': []
+        }
+
+        # Add detailed results for each patient
+        for patient_result in results['detailed_results']:
+            predicted = patient_result.get('predicted_status', patient_result.get('status'))
+            gt = patient_result.get('ground_truth')
+            response['detailed_results'].append({
+                'patient_id': patient_result['patient_id'],
+                'predicted': predicted,
+                'ground_truth': gt if gt != 'N/A' else None,
+                'correct': patient_result.get('is_correct'),
+                'reasoning': patient_result.get('reasoning', [])
+            })
+
+        # Summary
+        accuracy = results['accuracy']
+        if accuracy is not None:
+            correct = accuracy.get('correct', 0)
+            total_with_gt = accuracy.get('total', 0)
+            percentage = accuracy.get('percentage', 0)
+            response['summary'] = f"{correct}/{total_with_gt} correct ({percentage}%)"
+            print(f"API: Accuracy = {percentage}%")
+
+        return jsonify(response)
+
+    except Exception as e:
+        import traceback
+        error_msg = f'Error processing JSON: {str(e)}'
+        print(error_msg)
+        print(traceback.format_exc())
+        return jsonify({'error': error_msg, 'traceback': traceback.format_exc()}), 500
 
 
 if __name__ == '__main__':

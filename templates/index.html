@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient Eligibility Checker</title>
+    <title>Subject Eligibility Checker</title>
     <style>
         * {
             box-sizing: border-box;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
             background: #f5f5f5;
@@ -26,12 +26,57 @@
             text-align: center;
             margin-bottom: 30px;
         }
+
+        /* Mode selector tabs */
+        .mode-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .mode-tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: #f5f5f5;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+        }
+        .mode-tab:last-child {
+            margin-right: 0;
+        }
+        .mode-tab:hover {
+            background: #e8e8e8;
+        }
+        .mode-tab.active {
+            background: #007bff;
+            color: white;
+        }
+        .mode-tab .tab-icon {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* Mode content */
+        .mode-content {
+            display: none;
+        }
+        .mode-content.active {
+            display: block;
+        }
+
         .upload-area {
             border: 2px dashed #ccc;
             border-radius: 10px;
             padding: 40px;
             text-align: center;
             transition: border-color 0.3s;
+            margin-bottom: 20px;
         }
         .upload-area:hover {
             border-color: #007bff;
@@ -61,6 +106,24 @@
         .btn:hover {
             background: #0056b3;
         }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            margin-right: 10px;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .btn-clear {
+            background: #dc3545;
+            margin-right: 10px;
+        }
+        .btn-clear:hover {
+            background: #c82333;
+        }
         .flash-messages {
             margin-bottom: 20px;
         }
@@ -83,9 +146,67 @@
         .instructions ul {
             margin-bottom: 0;
         }
-        #file-name {
+        .instructions code {
+            background: #d4d4d4;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        #file-name, #csv-file-list {
             margin-top: 10px;
             color: #666;
+        }
+
+        /* File list for CSV mode */
+        .file-list {
+            text-align: left;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+        .file-item .file-type {
+            font-size: 12px;
+            color: #666;
+            background: #e9ecef;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+        .file-item .file-type.criteria {
+            background: #d4edda;
+            color: #155724;
+        }
+        .file-item .file-type.patient {
+            background: #cce5ff;
+            color: #004085;
+        }
+        .file-item .remove-btn {
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 0 5px;
+            margin-left: 10px;
+        }
+        .file-item .remove-btn:hover {
+            color: #a71d2a;
+        }
+        .file-item .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+        .file-item .file-name {
+            word-break: break-all;
         }
 
         /* Loading overlay */
@@ -131,36 +252,13 @@
             animation: runHorse 6s ease-in-out infinite;
             top: 10px;
         }
-        .horse::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 0;
-            width: 100%;
-            height: 5px;
-        }
 
         @keyframes runHorse {
-            0% {
-                left: -50px;
-                transform: scaleX(-1);
-            }
-            45% {
-                left: calc(100% + 10px);
-                transform: scaleX(-1);
-            }
-            50% {
-                left: calc(100% + 10px);
-                transform: scaleX(1);
-            }
-            95% {
-                left: -50px;
-                transform: scaleX(1);
-            }
-            100% {
-                left: -50px;
-                transform: scaleX(-1);
-            }
+            0% { left: -50px; transform: scaleX(-1); }
+            45% { left: calc(100% + 10px); transform: scaleX(-1); }
+            50% { left: calc(100% + 10px); transform: scaleX(1); }
+            95% { left: -50px; transform: scaleX(1); }
+            100% { left: -50px; transform: scaleX(-1); }
         }
 
         /* Dust particles */
@@ -202,6 +300,17 @@
             0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
             40% { transform: scale(1); opacity: 1; }
         }
+
+        /* Validation message */
+        .validation-msg {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+        .validation-msg.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -225,7 +334,7 @@
     </div>
 
     <div class="container">
-        <h1>Patient Eligibility Checker</h1>
+        <h1>Subject Eligibility Checker</h1>
 
         {% with messages = get_flashed_messages() %}
             {% if messages %}
@@ -237,36 +346,101 @@
             {% endif %}
         {% endwith %}
 
-        <form action="/upload" method="post" enctype="multipart/form-data">
-            <div class="upload-area">
-                <label for="file">
-                    Выберите Excel файл или перетащите его сюда
-                </label>
-                <input type="file" name="file" id="file" accept=".xlsx,.xls" onchange="showFileName()">
-                <div id="file-name"></div>
-            </div>
-            <center>
-                <button type="submit" class="btn">Обработать файл</button>
-            </center>
-        </form>
+        <!-- Mode selector tabs -->
+        <div class="mode-tabs">
+            <button class="mode-tab active" onclick="switchMode('excel')">
+                <span class="tab-icon">📊</span>
+                Excel файл
+            </button>
+            <button class="mode-tab" onclick="switchMode('csv')">
+                <span class="tab-icon">📁</span>
+                CSV + Criteria
+            </button>
+        </div>
 
-        <div class="instructions">
-            <h3>Инструкция</h3>
-            <ul>
-                <li>Загрузите Excel файл (.xlsx или .xls)</li>
-                <li>Файл должен содержать столбцы: <code>note</code>, <code>trial_inclusion</code>, <code>trial_exclusion</code></li>
-                <li>После обработки вы получите файл с тремя листами:
-                    <ul>
-                        <li>Подходящие пациенты</li>
-                        <li>Не подходящие пациенты</li>
-                        <li>Пациенты, требующие уточнения</li>
-                    </ul>
-                </li>
-            </ul>
+        <!-- Excel mode -->
+        <div id="excel-mode" class="mode-content active">
+            <form action="/upload" method="post" enctype="multipart/form-data" id="excel-form">
+                <div class="upload-area">
+                    <label for="file">
+                        Выберите Excel файл или перетащите его сюда
+                    </label>
+                    <input type="file" name="file" id="file" accept=".xlsx,.xls" onchange="showFileName()">
+                    <div id="file-name"></div>
+                </div>
+                <center>
+                    <button type="submit" class="btn">Обработать файл</button>
+                </center>
+            </form>
+
+            <div class="instructions">
+                <h3>Инструкция (Excel режим)</h3>
+                <ul>
+                    <li>Загрузите Excel файл (.xlsx или .xls)</li>
+                    <li>Файл должен содержать столбцы: <code>note</code>, <code>trial_inclusion</code>, <code>trial_exclusion</code></li>
+                    <li>После обработки вы получите файл с тремя листами:
+                        <ul>
+                            <li>Подходящие пациенты</li>
+                            <li>Не подходящие пациенты</li>
+                            <li>Пациенты, требующие уточнения</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- CSV mode -->
+        <div id="csv-mode" class="mode-content">
+            <form action="/upload_csv" method="post" enctype="multipart/form-data" id="csv-form">
+                <div class="upload-area">
+                    <label for="csv-files">
+                        Выберите CSV файлы пациента и файл criteria.txt
+                    </label>
+                    <input type="file" name="files" id="csv-files" multiple accept=".csv,.txt" onchange="addCsvFiles()">
+                    <div id="csv-file-list"></div>
+                </div>
+                <div class="validation-msg" id="csv-validation"></div>
+                <center>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('csv-files').click()">
+                        + Добавить ещё файлы
+                    </button>
+                    <button type="button" class="btn btn-clear" onclick="clearAllFiles()" id="clear-btn" style="display:none;">
+                        Очистить всё
+                    </button>
+                    <button type="submit" class="btn" id="csv-submit-btn" disabled>Обработать файлы</button>
+                </center>
+            </form>
+
+            <div class="instructions">
+                <h3>Инструкция (CSV режим)</h3>
+                <ul>
+                    <li><strong>Обязательно:</strong> загрузите файл <code>criteria.txt</code> с критериями включения/исключения</li>
+                    <li>Загрузите CSV файлы пациента:
+                        <ul>
+                            <li><code>*_anamnesis.csv</code> или <code>*_clinical_note.csv</code> — основные данные</li>
+                            <li><code>*_blood_labs.csv</code>, <code>*_lipid_labs.csv</code>, <code>*_renal_labs.csv</code> — лабораторные данные</li>
+                            <li><code>*_urinalysis.csv</code> — анализ мочи</li>
+                            <li><code>*_encounters.csv</code> — история визитов</li>
+                        </ul>
+                    </li>
+                    <li>Можно загрузить данные нескольких пациентов одновременно</li>
+                    <li>Patient ID определяется по префиксу файла (напр. <code>P0001</code>_anamnesis.csv)</li>
+                </ul>
+            </div>
         </div>
     </div>
 
     <script>
+        function switchMode(mode) {
+            // Update tabs
+            document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.closest('.mode-tab').classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.mode-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(mode + '-mode').classList.add('active');
+        }
+
         function showFileName() {
             const input = document.getElementById('file');
             const nameDisplay = document.getElementById('file-name');
@@ -275,12 +449,151 @@
             }
         }
 
+        // Хранилище для накопления файлов из разных директорий
+        let collectedFiles = new Map(); // key: filename, value: File object
+
+        function addCsvFiles() {
+            const input = document.getElementById('csv-files');
+
+            // Добавляем новые файлы к уже собранным
+            for (let file of input.files) {
+                // Используем имя файла как ключ (перезаписываем если уже есть)
+                collectedFiles.set(file.name, file);
+            }
+
+            // Очищаем input для возможности повторного выбора тех же файлов
+            input.value = '';
+
+            // Обновляем отображение
+            updateFileList();
+        }
+
+        function removeFile(filename) {
+            collectedFiles.delete(filename);
+            updateFileList();
+        }
+
+        function clearAllFiles() {
+            collectedFiles.clear();
+            updateFileList();
+        }
+
+        function updateFileList() {
+            const listDisplay = document.getElementById('csv-file-list');
+            const submitBtn = document.getElementById('csv-submit-btn');
+            const validationMsg = document.getElementById('csv-validation');
+            const clearBtn = document.getElementById('clear-btn');
+
+            if (collectedFiles.size === 0) {
+                listDisplay.innerHTML = '';
+                submitBtn.disabled = true;
+                clearBtn.style.display = 'none';
+                validationMsg.classList.remove('show');
+                return;
+            }
+
+            clearBtn.style.display = 'inline-block';
+
+            let hasCriteria = false;
+            let hasPatientData = false;
+            let html = '<div class="file-list">';
+
+            for (let [filename, file] of collectedFiles) {
+                const fileNameLower = filename.toLowerCase();
+                let fileType = '';
+                let typeClass = 'patient';
+
+                if (fileNameLower === 'criteria.txt' || fileNameLower.includes('criteria')) {
+                    fileType = 'Criteria';
+                    typeClass = 'criteria';
+                    hasCriteria = true;
+                } else if (fileNameLower.includes('anamnesis') || fileNameLower.includes('clinical_note')) {
+                    fileType = 'Patient Data';
+                    hasPatientData = true;
+                } else if (fileNameLower.includes('blood_labs') || fileNameLower.includes('lipid_labs') || fileNameLower.includes('renal_labs')) {
+                    fileType = 'Lab Results';
+                    hasPatientData = true;
+                } else if (fileNameLower.includes('urinalysis')) {
+                    fileType = 'Urinalysis';
+                    hasPatientData = true;
+                } else if (fileNameLower.includes('encounters')) {
+                    fileType = 'Encounters';
+                    hasPatientData = true;
+                } else if (fileNameLower.endsWith('.csv')) {
+                    fileType = 'CSV Data';
+                    hasPatientData = true;
+                } else {
+                    fileType = 'Unknown';
+                }
+
+                html += `<div class="file-item">
+                    <div class="file-info">
+                        <span class="file-name">${filename}</span>
+                        <span class="file-type ${typeClass}">${fileType}</span>
+                    </div>
+                    <button type="button" class="remove-btn" onclick="removeFile('${filename.replace(/'/g, "\\'")}')">✕</button>
+                </div>`;
+            }
+
+            html += '</div>';
+            html += `<div style="margin-top: 10px; color: #666; font-size: 13px;">Всего файлов: ${collectedFiles.size}</div>`;
+            listDisplay.innerHTML = html;
+
+            // Validation
+            if (!hasCriteria) {
+                validationMsg.textContent = 'Необходимо загрузить файл criteria.txt с критериями';
+                validationMsg.classList.add('show');
+                submitBtn.disabled = true;
+            } else if (!hasPatientData) {
+                validationMsg.textContent = 'Необходимо загрузить хотя бы один CSV файл с данными пациента';
+                validationMsg.classList.add('show');
+                submitBtn.disabled = true;
+            } else {
+                validationMsg.classList.remove('show');
+                submitBtn.disabled = false;
+            }
+        }
+
         // Show loading animation on form submit
-        document.querySelector('form').addEventListener('submit', function(e) {
+        document.getElementById('excel-form').addEventListener('submit', function(e) {
             const fileInput = document.getElementById('file');
             if (fileInput.files.length > 0) {
                 document.getElementById('loadingOverlay').classList.add('active');
             }
+        });
+
+        // Отправка CSV формы с накопленными файлами
+        document.getElementById('csv-form').addEventListener('submit', function(e) {
+            e.preventDefault(); // Предотвращаем стандартную отправку
+
+            if (collectedFiles.size === 0) {
+                return;
+            }
+
+            document.getElementById('loadingOverlay').classList.add('active');
+
+            // Создаём FormData с накопленными файлами
+            const formData = new FormData();
+            for (let [filename, file] of collectedFiles) {
+                formData.append('files', file, filename);
+            }
+
+            // Отправляем через fetch
+            fetch('/upload_csv', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(html => {
+                // Заменяем содержимое страницы ответом
+                document.open();
+                document.write(html);
+                document.close();
+            })
+            .catch(error => {
+                document.getElementById('loadingOverlay').classList.remove('active');
+                alert('Ошибка при отправке файлов: ' + error);
+            });
         });
     </script>
 </body>
