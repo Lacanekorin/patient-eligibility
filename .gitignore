@@ -39,3 +39,5 @@ build/
 models/
 nul
 Batch1withGroundTruth.xlsxdocker_response.html
+dataset_block/
+presentation/

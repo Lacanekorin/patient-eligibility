@@ -724,13 +724,29 @@ class MedicalNLPAnalyzer:
 
         exclusion_met_count = sum(1 for r in exclusion_results if r['is_met'] is True)
         exclusion_not_met_count = sum(1 for r in exclusion_results if r['is_met'] is False)
+        exclusion_unknown_count = sum(1 for r in exclusion_results if r['is_met'] is None)
         total_exclusion = len(exclusion_results)
 
-        # Определяем статус — сбалансированная логика
-        # 1. Если любой exclusion met → excluded
-        # 2. Если любой inclusion NOT met → excluded
-        # 3. Если есть met inclusion и нет not met → included
-        # 4. Если только unknown → not enough information
+        # Собираем unknown критерии для детализации
+        unknown_criteria = []
+        for r in inclusion_results:
+            if r['is_met'] is None:
+                unknown_criteria.append(f"[INCLUSION] {r['criterion'][:50]}...")
+        for r in exclusion_results:
+            if r['is_met'] is None:
+                unknown_criteria.append(f"[EXCLUSION] {r['criterion'][:50]}...")
+
+        # Вычисляем процент unknown критериев
+        total_criteria = total_inclusion + total_exclusion
+        total_unknown = inclusion_unknown_count + exclusion_unknown_count
+        unknown_ratio = total_unknown / total_criteria if total_criteria > 0 else 0
+        UNKNOWN_THRESHOLD = 0.20  # Порог: >20% unknown → not enough info
+
+        # Определяем статус — гибридная логика
+        # 1. Если любой exclusion met → excluded (точно не подходит)
+        # 2. Если любой inclusion NOT met → excluded (точно не подходит)
+        # 3. Если >20% критериев unknown → not enough information (нужно уточнение)
+        # 4. Если ≤20% unknown и есть met inclusion → included (решение на основе известных)
         if exclusion_met_count > 0:
             # Хотя бы один exclusion критерий выполнен — исключаем
             predicted_status = 'excluded'
@@ -739,19 +755,25 @@ class MedicalNLPAnalyzer:
             # Есть явно невыполненные inclusion критерии — исключаем
             predicted_status = 'excluded'
             summary = f"EXCLUDED: {inclusion_not_met_count} inclusion criteria not met"
+        elif unknown_ratio > UNKNOWN_THRESHOLD:
+            # Слишком много неопределённых критериев — нужно уточнение
+            predicted_status = 'not enough information'
+            unknown_details = "; ".join(unknown_criteria[:3])  # Показываем первые 3
+            if len(unknown_criteria) > 3:
+                unknown_details += f" (+{len(unknown_criteria) - 3} more)"
+            summary = f"NEEDS CLARIFICATION: {total_unknown}/{total_criteria} ({unknown_ratio:.0%}) criteria unknown — {unknown_details}"
         elif inclusion_met_count > 0:
-            # Есть подтверждённые inclusion критерии, нет явно невыполненных — включаем
-            # (unknown критерии игнорируем — часто это административные критерии типа "informed consent")
-            predicted_status = 'included'
-            summary = f"INCLUDED: {inclusion_met_count}/{total_inclusion} inclusion met, no exclusion met"
-        elif inclusion_unknown_count > 0:
-            # Только unknown критерии — недостаточно информации
-            predicted_status = 'not enough information'
-            summary = "NOT ENOUGH INFO: Cannot determine any inclusion criteria"
+            # Достаточно известных критериев для решения — включаем
+            if total_unknown > 0:
+                predicted_status = 'included'
+                summary = f"INCLUDED: {inclusion_met_count}/{total_inclusion} inclusion met, {total_unknown} unknown (≤{UNKNOWN_THRESHOLD:.0%})"
+            else:
+                predicted_status = 'included'
+                summary = f"INCLUDED: {inclusion_met_count}/{total_inclusion} inclusion met, no exclusion met"
         else:
-            # Смешанный случай — не хватает информации
+            # Нет информации вообще
             predicted_status = 'not enough information'
-            summary = f"NOT ENOUGH INFO: {inclusion_met_count} met, {inclusion_not_met_count} not met, {inclusion_unknown_count} unknown"
+            summary = "NOT ENOUGH INFO: No criteria could be evaluated"
 
         # Сравниваем с ground truth
         is_correct = False
