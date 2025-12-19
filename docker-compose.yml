@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   patient-checker:
     build:
       context: .
-      dockerfile: Dockerfile.cpu
-    image: patient-eligibility-checker:cpu
+      dockerfile: Dockerfile
+    image: patient-eligibility-checker:latest
     container_name: eligibility-checker
     ports:
       - "5000:5000"
