@@ -943,6 +943,7 @@ class MedicalNLPAnalyzer:
 
         return {
             'patient_id': patient.patient_id,
+            'trial_id': patient.trial_id,
             'predicted_status': predicted_status,
             'ground_truth': patient.ground_truth or 'N/A',
             'is_correct': is_correct,

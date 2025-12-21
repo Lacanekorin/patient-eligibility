@@ -172,6 +172,7 @@ def process_patients_v2(df: pd.DataFrame) -> dict:
         # Формируем детальный результат для UI
         detailed_row = {
             'patient_id': result['patient_id'],
+            'trial_id': result.get('trial_id', ''),
             'predicted_status': result['predicted_status'],
             'ground_truth': result['ground_truth'],
             'is_correct': result['is_correct'],
@@ -183,6 +184,9 @@ def process_patients_v2(df: pd.DataFrame) -> dict:
             'inclusion_unknown': sum(1 for r in result['inclusion_results'] if r['is_met'] is None),
             'exclusion_met': sum(1 for r in result['exclusion_results'] if r['is_met'] is True),
             'exclusion_not_met': sum(1 for r in result['exclusion_results'] if r['is_met'] is False),
+            # Полные результаты критериев для матрицы в Excel
+            'inclusion_results': result['inclusion_results'],
+            'exclusion_results': result['exclusion_results'],
         }
         detailed_results.append(detailed_row)
 
@@ -271,7 +275,8 @@ def upload_file():
                 pd.DataFrame(results['results']['included']),
                 pd.DataFrame(results['results']['excluded']),
                 pd.DataFrame(results['results']['not_enough_info']),
-                str(result_path)
+                str(result_path),
+                detailed_results=results['detailed_results']
             )
 
             # Статистика для отображения
@@ -383,7 +388,8 @@ def upload_csv_files():
             pd.DataFrame(results['results']['included']),
             pd.DataFrame(results['results']['excluded']),
             pd.DataFrame(results['results']['not_enough_info']),
-            str(result_path)
+            str(result_path),
+            detailed_results=results['detailed_results']
         )
 
         # Статистика для отображения

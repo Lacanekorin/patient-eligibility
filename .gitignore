@@ -50,4 +50,3 @@ fix_json.py
 generate_test_json.py
 test_api.py
 test_csv_converter.py
-src/csv_converter.py
