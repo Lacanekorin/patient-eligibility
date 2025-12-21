@@ -6,7 +6,7 @@ services:
     image: subject-eligibility-checker:latest
     container_name: subject-eligibility-checker
     ports:
-      - "5000:5000"
+      - "8000:5000"
     volumes:
       - ./data:/app/data
       - ./models:/root/.cache/huggingface/hub
