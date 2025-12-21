@@ -11,7 +11,7 @@ docker pull lacanekorin/subject-eligibility-checker:latest
 docker run -p 5000:5000 -v ./data:/app/data lacanekorin/subject-eligibility-checker:latest
 ```
 
-Открыть: http://localhost:5000
+Открыть: http://localhost:8000
 
 ### Локально
 
