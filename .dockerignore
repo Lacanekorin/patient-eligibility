@@ -1,9 +1,43 @@
+# Virtual environment
 venv/
 .venv/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Git
 .git/
 .gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Documentation (copied separately if needed)
 *.md
+.claude/
+
+# Data directories (mounted as volumes)
 data/uploads/*
 data/results/*
+data/preprocessed/*
+
+# Development scripts
+download_models.py
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# Test data
+test_data/

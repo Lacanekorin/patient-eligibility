@@ -1,4 +1,4 @@
-"""
+r"""
 Скрипт для скачивания медицинских NLP моделей локально.
 Модели сохраняются в папку models/ для использования в Docker.
 
@@ -6,10 +6,10 @@
     c:\other\defy\venv\Scripts\python.exe download_models.py
 """
 
-from sentence_transformers import SentenceTransformer
-from pathlib import Path
-import os
 import shutil
+from pathlib import Path
+
+from sentence_transformers import SentenceTransformer
 
 # Список моделей для скачивания
 MODELS = [
@@ -37,7 +37,7 @@ MODELS = [
     # Дополнительные полезные модели
     {
         "name": "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext",
-        "description": "Microsoft BiomedBERT - trained on PubMed abstracts and full text",
+        "description": "Microsoft BiomedBERT - PubMed abstracts and full text",
     },
 ]
 
@@ -101,7 +101,7 @@ def copy_to_models_dir():
             else:
                 print(f"Copying: {folder_name}")
                 shutil.copytree(src, dst)
-                print(f"  -> Done")
+                print("  -> Done")
         else:
             print(f"Not found in cache: {folder_name}")
 
@@ -126,9 +126,9 @@ def list_available_models():
 
 
 def main():
-    print("="*60)
+    print("=" * 60)
     print("Medical NLP Models Downloader")
-    print("="*60)
+    print("=" * 60)
 
     # Показываем что будем качать
     print("\nModels to download:")

@@ -1,4 +1,5 @@
 """Модуль для проверки соответствия пациентов критериям исследования."""
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
@@ -8,6 +9,7 @@ from .nlp_analyzer import get_analyzer
 
 class EligibilityStatus(Enum):
     """Статус соответствия пациента критериям."""
+
     ELIGIBLE = "included"
     NOT_ELIGIBLE = "excluded"
     NEEDS_CLARIFICATION = "not enough information"
@@ -16,6 +18,7 @@ class EligibilityStatus(Enum):
 @dataclass
 class CriterionResult:
     """Результат проверки одного критерия."""
+
     criterion: str
     is_met: Optional[bool]
     explanation: str
@@ -26,6 +29,7 @@ class CriterionResult:
 @dataclass
 class PatientResult:
     """Результат проверки пациента."""
+
     patient_id: str
     status: EligibilityStatus
     inclusion_results: List[CriterionResult]
@@ -37,7 +41,7 @@ def evaluate_patient(
     patient_id: str,
     clinical_note: str,
     inclusion_criteria: List[str],
-    exclusion_criteria: List[str]
+    exclusion_criteria: List[str],
 ) -> PatientResult:
     """
     Оценивает пациента по всем критериям включения и исключения.
@@ -47,37 +51,37 @@ def evaluate_patient(
     status_str, summary, inc_results, exc_results = analyzer.evaluate_all_criteria(
         clinical_note=clinical_note,
         inclusion_criteria=inclusion_criteria,
-        exclusion_criteria=exclusion_criteria
+        exclusion_criteria=exclusion_criteria,
     )
 
     # Преобразуем в наши структуры
     inclusion_results = [
         CriterionResult(
-            criterion=r['criterion'],
-            is_met=r['is_met'],
-            explanation=r['explanation'],
-            quotes=r['quotes'],
-            similarity_score=r['score']
+            criterion=r["criterion"],
+            is_met=r["is_met"],
+            explanation=r["explanation"],
+            quotes=r["quotes"],
+            similarity_score=r["score"],
         )
         for r in inc_results
     ]
 
     exclusion_results = [
         CriterionResult(
-            criterion=r['criterion'],
-            is_met=r['is_met'],
-            explanation=r['explanation'],
-            quotes=r['quotes'],
-            similarity_score=r['score']
+            criterion=r["criterion"],
+            is_met=r["is_met"],
+            explanation=r["explanation"],
+            quotes=r["quotes"],
+            similarity_score=r["score"],
         )
         for r in exc_results
     ]
 
     # Преобразуем статус
     status_map = {
-        'included': EligibilityStatus.ELIGIBLE,
-        'excluded': EligibilityStatus.NOT_ELIGIBLE,
-        'not enough information': EligibilityStatus.NEEDS_CLARIFICATION
+        "included": EligibilityStatus.ELIGIBLE,
+        "excluded": EligibilityStatus.NOT_ELIGIBLE,
+        "not enough information": EligibilityStatus.NEEDS_CLARIFICATION,
     }
     status = status_map.get(status_str, EligibilityStatus.NEEDS_CLARIFICATION)
 
@@ -89,14 +93,14 @@ def evaluate_patient(
         status=status,
         inclusion_results=inclusion_results,
         exclusion_results=exclusion_results,
-        summary=detailed_summary
+        summary=detailed_summary,
     )
 
 
 def generate_summary(
     status: EligibilityStatus,
     inclusion_results: List[CriterionResult],
-    exclusion_results: List[CriterionResult]
+    exclusion_results: List[CriterionResult],
 ) -> str:
     """Генерирует текстовое описание результата оценки."""
     lines = []
@@ -104,7 +108,7 @@ def generate_summary(
     status_text = {
         EligibilityStatus.ELIGIBLE: "INCLUDED (Подходит)",
         EligibilityStatus.NOT_ELIGIBLE: "EXCLUDED (Не подходит)",
-        EligibilityStatus.NEEDS_CLARIFICATION: "NOT ENOUGH INFO (Требуется уточнение)"
+        EligibilityStatus.NEEDS_CLARIFICATION: "NOT ENOUGH INFO (Требуется уточнение)",
     }
 
     lines.append(f"Status: {status_text[status]}")
@@ -116,17 +120,17 @@ def generate_summary(
         lines.append(f"[{mark}] {r.criterion[:100]}")
         lines.append(f"    {r.explanation}")
         if r.quotes:
-            lines.append(f"    Quote: \"{r.quotes[0][:150]}...\"")
+            lines.append(f'    Quote: "{r.quotes[0][:150]}..."')
         lines.append("")
 
     lines.append("=== Exclusion Criteria ===")
     for r in exclusion_results:
-        # Для exclusion: + означает критерий НЕ найден (хорошо), - означает найден (плохо)
+        # Для exclusion: + означает НЕ найден (хорошо), - найден (плохо)
         mark = "-" if r.is_met else ("+" if r.is_met is False else "?")
         lines.append(f"[{mark}] {r.criterion[:100]}")
         lines.append(f"    {r.explanation}")
         if r.quotes and r.is_met:
-            lines.append(f"    Quote: \"{r.quotes[0][:150]}...\"")
+            lines.append(f'    Quote: "{r.quotes[0][:150]}..."')
         lines.append("")
 
     return "\n".join(lines)

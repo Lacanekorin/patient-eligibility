@@ -1,10 +1,10 @@
 services:
-  patient-checker:
+  subject-checker:
     build:
       context: .
       dockerfile: Dockerfile
-    image: patient-eligibility-checker:latest
-    container_name: eligibility-checker
+    image: subject-eligibility-checker:latest
+    container_name: subject-eligibility-checker
     ports:
       - "5000:5000"
     volumes:

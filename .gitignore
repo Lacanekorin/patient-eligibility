@@ -8,8 +8,9 @@ __pycache__/
 *$py.class
 *.so
 .Python
-.claude/
 
+# Claude
+.claude/
 
 # IDE
 .idea/
@@ -20,6 +21,7 @@ __pycache__/
 # Data files
 data/uploads/
 data/results/
+data/preprocessed/
 *.xlsx
 *.xls
 
@@ -35,18 +37,12 @@ build/
 # Logs
 *.log
 
-# Models (downloaded separately, ~4.5GB total)
+# Models (downloaded separately, ~420MB)
 models/
+
+# Temporary/test files
 nul
-Batch1withGroundTruth.xlsxdocker_response.html
+*.html
+test_data/
 dataset_block/
 presentation/
-test_data/
-
-# Test/utility scripts
-check_errors.py
-csv_upload_test.html
-fix_json.py
-generate_test_json.py
-test_api.py
-test_csv_converter.py
