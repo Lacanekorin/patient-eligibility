@@ -1,4 +1,4 @@
-# Patient Eligibility Checker
+# Subject Eligibility Checker
 
 Автоматическая оценка пациентов на соответствие критериям клинических исследований с использованием NLP (SapBERT).
 
@@ -32,15 +32,24 @@ docker-compose up --build
 ## Структура
 
 ```
-defy/
+subject-eligibility/
 ├── src/
 │   ├── nlp_analyzer.py       # NLP анализ (SapBERT)
 │   ├── data_preprocessor.py  # Препроцессинг Excel
 │   ├── csv_converter.py      # Конвертация CSV
-│   └── excel_handler.py      # Работа с Excel
-├── templates/                # HTML шаблоны
+│   ├── excel_handler.py      # Работа с Excel
+│   └── eligibility_checker.py
+├── templates/
+│   ├── index.html            # Страница загрузки
+│   └── results.html          # Страница результатов
+├── data/
+│   ├── uploads/              # Загруженные файлы
+│   ├── results/              # Результаты обработки
+│   └── preprocessed/         # Препроцессированные данные
+├── models/                   # NLP модель SapBERT (~420MB)
 ├── app.py                    # Flask приложение
 ├── download_models.py        # Скачивание модели
+├── requirements.txt
 ├── Dockerfile
 └── docker-compose.yml
 ```
@@ -89,8 +98,83 @@ UNKNOWN_THRESHOLD = 0.20    # Порог unknown для "not enough info"
 | `POST /api/analyze` | JSON API для анализа |
 | `GET /download/<file>` | Скачивание результатов |
 
+### POST /api/analyze
+
+JSON API для программного анализа пациентов.
+
+**Request:**
+
+```json
+{
+    "patients": [
+        {
+            "patient_id": "P0001",
+            "note": "0. Patient is 65 years old. 1. History of heart failure. 2. LVEF 35%.",
+            "ground_truth": "included"
+        },
+        {
+            "patient_id": "P0002",
+            "note": "0. 45-year-old male. 1. Type 1 diabetes since 2010.",
+            "ground_truth": "excluded"
+        }
+    ],
+    "inclusion_criteria": [
+        "Age >= 18 years",
+        "Heart failure with reduced ejection fraction (LVEF <= 40%)"
+    ],
+    "exclusion_criteria": [
+        "Type 1 diabetes",
+        "Pregnancy"
+    ]
+}
+```
+
+**Поля запроса:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `patients` | array | Список пациентов для анализа |
+| `patients[].patient_id` | string | ID пациента |
+| `patients[].note` | string | Клинические заметки (нумерованные: 0. ... 1. ...) |
+| `patients[].ground_truth` | string/null | Ожидаемый результат для расчета accuracy (опционально) |
+| `inclusion_criteria` | array | Список критериев включения |
+| `exclusion_criteria` | array | Список критериев исключения |
+
+**Response:**
+
+```json
+{
+    "total_patients": 2,
+    "accuracy": 100.0,
+    "results": [
+        {
+            "patient_id": "P0001",
+            "eligibility": "included",
+            "ground_truth": "included",
+            "correct": true,
+            "inclusion_results": [...],
+            "exclusion_results": [...]
+        }
+    ]
+}
+```
+
+**Пример вызова:**
+
+```bash
+curl -X POST -H "Content-Type: application/json" \
+     -d @patients.json \
+     http://localhost:5000/api/analyze
+```
+
 ## Производительность
 
-- **Accuracy**: 70% на тестовом датасете
+| Режим | Датасет | Пациентов | Accuracy |
+|-------|---------|-----------|----------|
+| Excel | Batch1 | 101 | 70.3% |
+| CSV+TXT | Study W01 | 10 | 90% |
+| CSV+TXT | Study W02 | 30 | 63.3% |
+| **Combined** | **All** | **141** | **70.2%** |
+
 - **Время на пациента**: ~1.7 сек (CPU)
 - **Модель**: SapBERT (~420MB)
